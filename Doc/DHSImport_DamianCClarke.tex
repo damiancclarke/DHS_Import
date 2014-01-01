@@ -1,0 +1,269 @@
+\documentclass{article}[11pt,subeqn]
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\usepackage[pdftex]{graphicx}
+\usepackage{setspace}
+\usepackage{framed}
+\usepackage{lastpage}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+
+\title{Automatically Importing, Appending and Merging the Demographic and Health Surveys}
+\author{Damian C. Clarke\thanks{Contact mail \href{mailto:damian.clarke@economics.ox.ac.uk}{damian.clarke@economics.ox.ac.uk}}}
+\date{\today}
+
+  \setlength\topmargin{-0.375in}
+%  \setlength\headheight{20pt}
+ \setlength\headwidth{5.8in}
+  \setlength\textheight{8.9in}
+  \setlength\textwidth{5.8in}
+  \setlength\oddsidemargin{0.3in}
+%  \setlength\evensidemargin{-0.5in}
+%  \setlength\parindent{0.25in}
+  \setlength\parskip{0.25in}
+
+\usepackage{natbib}
+\bibliographystyle{abbrvnat}
+\bibpunct{(}{)}{;}{a}{,}{,}
+
+\usepackage{lscape}
+\usepackage{rotating}
+\usepackage{multirow}
+\usepackage{rotating,capt-of}
+\usepackage{array}
+
+\usepackage[update,prepend]{epstopdf}
+
+\usepackage[font=sc]{caption}
+
+%NEW COMMANDS
+\newcommand{\Lagr}{\mathcal{L}}
+\newcommand{\vect}[1]{\mathbf{#1}}
+\newcolumntype{P}[1]{>{\raggedright}p{#1\linewidth}}
+
+\usepackage{appendix}
+\usepackage{booktabs}
+%\usepackage{cleveref}
+
+\fancyhead{}
+\fancyfoot{}
+\fancyhead[L]{\textsc{DHS Use}}
+\fancyhead[R]{\textsc{Damian C. Clarke}}
+\fancyfoot[C]{\textsc{\thepage \ of  \pageref{LastPage}}}
+
+\usepackage{pgf,tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{decorations}
+\usetikzlibrary{shapes,arrows}
+
+\begin{document}
+\begin{spacing}{1.25}
+
+\maketitle
+
+\begin{abstract}
+I provide here a quick guide to producing multi-country DHS files from the 1500+ surveys provided on-%
+line.  This guide is provided as a companion to the program DHS\_Import.py and DHS\_Multicountry.do
+which completely automate the creation of a comprehensive database of all publicly-available DHS files.
+In order to create these databases the user simply requires an internet connection, and the ability to
+run the two provided files; the first using the free program Python and the second using the statistical
+program Stata. The programs provided are written to include all surveys available at the date of use, 
+even if those surveys were not available when the program was written.
+\end{abstract}
+
+\section{Introduction}
+The Demographic and Health Surveys (DHS) are a set of surveys collected in developing countries which
+provide data relating to maternal health and fertility, child health, as well as specific modules on
+HIV, anemia and maternal mortality (among other variables).  These files are publicly available on-line
+at \href{http://www.measuredhs.com/}{http://www.measuredhs.com}, along with a full description of their 
+contents, methodology and use.
+
+Currently the DHS files are stored by survey country and year, resulting in approximately 1600 separate
+files over the period 1990-2011.  Hence, a user interested in working with cross-country data, must either
+manually `point and click' to download these and then merge the downloaded files, or write a script to
+download and unzip the files and then merge the resulting files.  I provide here such a routine which 
+allows for the automatic importing, appending and merging of all publicly available DHS datasets. This
+routine consists of two files, a file written using the computer language Python which downloads, unzips 
+and saves all files, and then a stata do file to process the DHS files.  The reason I write the downloading 
+script in Pyton rather than the more commonly used (by economists) ado language for Stata is due to 
+Python's flexibility, as well as its simplicity and the fact that it is free and installed on many operating 
+systems `out of the box'\footnote{For example Python is included by default on ubuntu.  Windows users 
+without Python installed can install version 2.7.3 (suggested) \href{http://www.python.org/getit/}{here}.}.  
+In order to use this program it is not necessary for the user to know any Python, although a familiarity 
+with Stata is required as all resulting datasets are produced in Stata's \texttt{.dta} format.
+
+
+\section{Files}
+\label{scn:files}
+Figure \ref{fig:DHS} provides a description of the DHS datasets including optimal merging direction.
+There are seven distinct datasets provided by the DHS (excluding the Wealth Index data and Height
+and Weight data).  Each of these datasets merges directly with the Individual Women's Recode (IR),
+with the exception of the Male Recode (MR) which only merges to the IR in the case that a male
+and female live together and both report sharing a relationship.  In this case, the merged database is
+available as the couple's recode (CR).
+
+\tikzstyle{decision} = [diamond, draw, fill=blue!20, 
+    text width=4.5em, text badly centered, node distance=3cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw, fill=blue!20, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+\tikzstyle{line} = [draw, -latex']
+\tikzstyle{line1} = [draw]
+\tikzstyle{cloud} = [draw, ellipse,fill=red!20, node distance=3cm,
+    minimum height=2em]
+
+\begin{figure}[ht!]
+\begin{center}
+\caption{Links between DHS Recodes}
+\label{fig:DHS}
+\begin{tikzpicture}[node distance = 3cm, auto]
+    % Place nodes
+    \node [block] (HR) {Household Recode (HR)};
+    \node [block, below of=HR] (PR) {HH Member Recode (PR)};
+    \node [block, below of=PR] (CR) {Couple's Recode (CR)};
+    \node [block, left of=CR, node distance=4cm] (IR) {Individual Women's Recode (IR)};
+    \node [block, right of=CR, node distance=4cm] (MR) {Male Recode (MR)};    
+    \node [block, below of=IR] (KR) {Children's Recode (KR)};
+    \node [block, below of=CR] (BR) {Birth Recode (BR)};
+    \node [below of=CR, node distance=1.2cm] (link) {};    
+    \node [below of=CR, node distance=30.5pt] (link1) {};    
+
+    % Draw edges
+    \path [line] (HR) --node [right] {\textbf{1:m}} (PR);
+    \path [line] (PR) -| node [above]{\textbf{1:m}}(IR);
+    \path [line] (PR) -| node [above]{\textbf{1:m}}(MR);
+    \path [line,dashed] (IR) -- node [above]{\textbf{1:m}}(CR);
+    \path [line,dashed] (MR) -- node [above]{\textbf{1:m}}(CR);    
+    \path [line] (IR) --node [right] {\textbf{1:m}} (KR);
+    \path [line1] (IR) |- (link);
+    \hspace{-3.5pt}\path [line] (link1) -- node [right] {\textbf{1:m}}(BR);
+    
+    \end{tikzpicture}
+\end{center}
+\end{figure}
+
+Each file link is joined by a unique merge code and the ``DHS guarantees that their files can be matched 
+seamlessly whenever a relationship is possible''.  The DHS provides a description of how to join each 
+mergeable set of files on its website\footnote{\url{http://www.measuredhs.com/data/Merging-Datasets.cfm}},
+however this table assumes that the user is working with data from a single country.  Hence, to ensure
+that data still merges seamlessly, I add two new variables to each file; \_cou (country) and \_year 
+(year) (see lines 27--29 of the file DHS\_multicountry.do).  In this way, files are merged as described in 
+table \ref{tab:merge}.
+
+\begin{table}[htpb!]
+\begin{center}
+\caption{DHS Merge variables}
+\label{tab:merge}
+\begin{tabular}{lll} 
+\toprule
+& \multicolumn{2}{l}{Secondary Files} \\ \cmidrule{2-3}
+& Match for household & Match for women \\
+\midrule
+Base & \_cou + \_year + HV001 + HV002 & \_cou + \_year + V001 + V002 + V003 \\
+\begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} \\
+Women & \_cou + \_year + V001 + V002 &  \\
+\begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} \\
+Children & \_cou + \_year + V001 + V002 & \_cou + \_year + V001 + V002 + V003 \\
+\begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} & \begin{footnotesize} \end{footnotesize} \\
+Men & \_cou + \_year + MV001 + MV002 & Couples:  \_cou + \_year + \\
+ & &  MV001 + MV002 + MV034i\\
+\bottomrule
+%\multicolumn{3}{l}{Agregar una nota acá.}
+\end{tabular}
+\end{center}
+\end{table}
+
+Given that DHS files exist for each recode type (figure \ref{fig:DHS}) and each country/year pair available, 
+the file DHS\_multicountry.do creates a cross-country dataset for each file type by merging each recode of a 
+given type together.  Thus, the resulting files will be HR\_World, PR\_World, IR\_World and so on.  Given that 
+each of the mergeable `World' files still has a unique merge code (as described in table \ref{tab:merge}), 
+these can then be merged according to the user's needs.  Using all files available at the date this document was 
+produced, the size of the resulting files are listed in table \ref{tab:files}.  Whilst the sizes of these datasets
+is relatively large for work on a personal computer, these can easily be shrunk to a manageable size by either
+limiting the quantity of variables included, or by splitting the dataset into various smaller datasets.  The
+datasets listed in table \ref{tab:files} include all cross-country variables, many of which will not be relevant
+in any given analysis.  Due to this fact, the user can specify in the program which variables they wish to keep
+before appending the individual country files (line 49 of DHS\_Multicountry.do).
+
+\begin{table}[htpb!]
+\begin{center}
+\caption{DHS Merge variables}
+\label{tab:files}
+\begin{tabular}{ll} 
+\toprule
+File Name & Size \\
+\midrule
+HR\_World & 21.4 GB \\
+PR\_World & 9.2 GB \\
+IR\_World & 16.9 GB \\
+%CR\_World &  \\
+MR\_World & 1.2 GB \\
+KR\_World & 2.9 GB \\
+BR\_World & 9.5 GB \\
+\bottomrule
+%\multicolumn{3}{l}{Agregar una nota acá.}
+\end{tabular}
+\end{center}
+\end{table}
+
+\section{Creating the Cross-Country DHS Files}
+\subsection{Running the Programs}
+The programs provided along with this document; DHS\_Import.py and DHS\_Multicountry.do, are operating-system
+independent, and require only that the user possess access to Python (freely available) and Stata (available at most 
+universities).  These programs have been successfully tested on Ubuntu 12.04 and Windows 7, and should work
+without difficulity on other Linux and Windows systems, plus MacOS. To run the programs, the user must download
+the two program files, plus an auxiliary text file (DHS\_Countries.txt) which lists the full set of DHS survey countries.
+These three files should be saved in the same working directory.
+
+In order to import and build the DHS data, the user should first run the Python file to download and unzip all datasets. 
+This is done as follows (assuming that the user has already installed Python): firstly download the file from \url{https://sites.google.com/site/damiancclarke/computation} and save in any directory, also ensure that you are 
+logged into the DHS data download \href{http://www.measuredhs.com/data/available-datasets.cfm}{website} 
+using your user name and password (available via on-line application).  Secondly, open the command line 
+(also known as the terminal) of your computer\footnote{In ubuntu this can be accessed by simply typing 
+\texttt{Ctrl + Alt + T}, in Windows by typing \texttt{cmd} at the Run option of the Start menu, and in Mac 
+via the Applications folder (\texttt{Applications$\rightarrow$Utilities$\rightarrow$Terminal})}.  Finally,
+at the command line change to the working directory where you saved DHS\_Import.py (using the command 
+\texttt{cd}), and enter the following:
+
+\texttt{python DHS\_Import.py file1 file2}
+
+\noindent where the argument \texttt{file1} represents the directory where you want to download the unzipped 
+\texttt{.dta} files, and \texttt{file2} the folder where your operating system by default downloads files from 
+the web (this may be something like ``$\sim$\slash Downloads'' on Linux-based operating systems or 
+``C\slash Downloads'' on Windows).  Once having entered this command the program will proceed to download
+all available datasets, and save them in the directory specified \texttt{file1}.  Given that the speed at which
+the program runs depends upon the strength of the internet connection, it is recommended at this stage to have
+access to a stable connection.  It is also highly recommended that download settings be changed (if necessary) to 
+ensure that the user need not authorize each individual download in a pop-up dialog box.
+
+Once having downloaded all current DHS files, these are appended together into a final set of usable databases
+using the Stata file DHS\_Multicountry.do.  This file requires very few changes: the user simply need specify
+the values for the global and local variables on lines 14-16.  The first global variable should be set to the directory
+in which the Python program was saved, the second global to the argument \texttt{file1} from the Python command,
+(the location of the data) and finally the local ``clean'' must be specified.  For this local the user should enter
+\texttt{yes} if they wish for files added by the program to be removed upon completion (this is advisable where
+the user is concerned about the use of hard disk space on their computer).
+
+\subsection{Resulting Files}
+These programs will result in a full set of DHS databases as described in table \ref{tab:files}, along with 
+three raw text files.  The first of these text files contains one line for each country (and country code) and 
+year that the survey is run (eg CO Colombia 1990).  The second lists all individual databases downloaded (for 
+each country/year pair multiple surveys exist), and finally, a similar file is produced for use by the Stata
+\texttt{.do} file.  These files may be of interest to the user should they require summary statistics of years
+and places surveyed in the DHS.
+
+\subsection{Final Points}
+These programs are provided for open use and can be modified in any way that the user desires.  Any comments, 
+queries or suggestions are welcome.  The Stata \texttt{.do} file provided here does not include commands to 
+merge datasets once they have been produced, as the types of merges required and the variables included will 
+vary widely depending upon the interest of the user.  I do however have \texttt{.do} files which program these 
+merges, and am happy to make these available to interested users.  For these files, or for any other details 
+regarding these programs, please contact the author at
+\href{mailto:damian.clarke@economics.ox.ac.uk}{damian.clarke@economics.ox.ac.uk}.  
+
+
+
+
+\end{spacing}
+\end{document}
